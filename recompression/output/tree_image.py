@@ -1,3 +1,5 @@
+import uuid
+
 import anytree
 import anytree.exporter as exporter
 
@@ -10,7 +12,11 @@ class TreeImage:
     def generate(self, path: str, root: cn.CompressionNode):
         anytree_root = self._convert_to_anytree_node(root)
 
-        exporter.DotExporter(anytree_root, nodeattrfunc=self._node_attr_func).to_picture(path)
+        exporter.DotExporter(
+            anytree_root,
+            graph='strict digraph',
+            nodeattrfunc=self._node_attr_func,
+        ).to_picture(path)
 
     def _node_attr_func(self, node: anytree.Node) -> str | None:
         if hasattr(node, 'is_solution'):

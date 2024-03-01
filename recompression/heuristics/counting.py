@@ -1,7 +1,7 @@
 import z3
 
 from recompression.heuristics import heuristics as h
-from recompression.models import equation as eq, var as v
+from recompression.models import equation as eq, var as v, option as opt
 from utils.time import timeit
 
 
@@ -10,16 +10,20 @@ class CountingHeuristics(h.Heurisitcs):
         self.z3 = z3.Solver()
 
     @timeit("heuristic of counting consts")
-    def is_satisfable(self, equation: eq.Equation) -> bool:
+    def is_satisfable(self, equation: eq.Equation, option: opt.Option) -> bool:
         results = []
-        consts = equation.sample.get_consts().union(equation.template.get_consts())
+        tpl_vars = equation.template.get_vars()
+        tpl_consts = equation.template.get_consts()
+        tpl_elements = tpl_vars.union(tpl_consts)
+
+        consts = equation.sample.get_consts().union(tpl_consts)
         for const in consts:
             self.z3.reset()
 
             lhs_count = 0
             lhs_vars = []
             lhs_vars_bools = []
-            for element in equation.template.elements:
+            for element in tpl_elements:
                 if element == const:
                     lhs_count += 1
                 elif isinstance(element, v.Var):

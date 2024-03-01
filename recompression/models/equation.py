@@ -13,6 +13,8 @@ class Template:
         self.elements = list(elements)
 
     def __str__(self):
+        if len(self.elements) == 0:
+            return '<empty>'
         return ''.join(str(el) for el in self.elements)
 
     __repr__ = __str__
@@ -34,7 +36,7 @@ class Template:
 
         return set([var for var in self.elements if isinstance(var, v.Var)])
 
-    def get_consts(self) -> list[c.AbstractConst]:
+    def get_consts(self) -> set[c.AbstractConst]:
         """
         :return: множество констант выражения
         """
@@ -116,6 +118,8 @@ class Sample:
         self.elements = list(elements)
 
     def __str__(self):
+        if len(self.elements) == 0:
+            return '<empty>'
         return ''.join(str(el) for el in self.elements)
 
     __repr__ = __str__
@@ -241,9 +245,6 @@ class Equation:
         return self.template == other.template and self.sample == other.sample
 
     def __str__(self):
-        if len(self.template.elements) == 0 or len(self.sample.elements) == 0:
-            return f'<empty equation>'
-
         return f'{self.template}={self.sample}'
 
     __repr__ = __str__
