@@ -14,7 +14,7 @@ class TreeImage:
 
     def _node_attr_func(self, node: anytree.Node) -> str | None:
         if hasattr(node, 'is_solution'):
-            return 'color=green shape=box'
+            return 'color=lightgreen fillcolor=lightgreen style=filled shape=box'
         elif hasattr(node, 'is_bad'):
             return 'color=red shape=box'
 
