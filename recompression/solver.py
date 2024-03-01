@@ -54,8 +54,8 @@ class Solver:
                         node.children.append(new_node)
                         continue
 
-                    if not all([heuristic.is_satisfable(new_eq) for heuristic in self._heuristics]):
-                        print(f'WARN: equation {new_eq} dropped bacause of heuristics')
+                    if not all([heuristic.is_satisfable(new_eq, option) for heuristic in self._heuristics]):
+                        print(f'WARN: equation {new_eq} dropped bacause of heuristics, option {option}')
                         continue
 
                     node.children.append(new_node)

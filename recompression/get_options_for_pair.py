@@ -122,6 +122,7 @@ def _dedup_popings(popings_raw: Popings) -> Popings:
 
             if pop in poping2:
                 popings.remove(poping1)
+                break
 
     return list(popings)
 
