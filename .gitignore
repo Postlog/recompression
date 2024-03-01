@@ -143,3 +143,5 @@ crashlytics-build.properties
 fabric.properties
 
 .pytest_cache
+
+*.png
