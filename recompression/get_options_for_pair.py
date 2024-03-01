@@ -8,6 +8,9 @@ def is_popping_essential(template: eq.Template, pair: c.Pair, popping: opt.PopLe
     return new_tpl.get_pair_occourance_count(pair) > template.get_pair_occourance_count(pair)
 
 
+Poppings = list[tuple[opt.PopLeft | opt.PopRight] | tuple[opt.PopLeft | opt.PopRight, opt.PopLeft | opt.PopRight]]
+
+
 def get_options_for_pair(
         template: eq.Template,
         pair: c.Pair,
@@ -39,6 +42,64 @@ def get_options_for_pair(
             else:
                 popings_raw.append((opt.PopLeft(var, a), opt.PopRight(var, b)))
 
+    popings = _dedup_popings(popings_raw)
+
+    if len(popings) == 0:
+        return [opt.Option(parent_option.substitutions, parent_option.restriction)]
+
+    options_raw = []
+
+    for poping in popings:
+        if len(poping) == 1:
+            pop = poping[0]
+            options_raw.append([
+                opt.Option([pop], None),
+                opt.Option([], _reverse_substitution(pop)),
+            ])
+            continue
+
+        first, second = poping
+        first_essential = is_popping_essential(template, pair, first)
+        second_essential = is_popping_essential(template, pair, second)
+        if first_essential and second_essential:
+            options_raw.append([
+                opt.Option([first, second], None),
+                opt.Option([first], _reverse_substitution(second)),
+                opt.Option([second], _reverse_substitution(first)),
+                opt.Option([], vr.RestrictionAND([_reverse_substitution(first), _reverse_substitution(second)]))
+            ])
+        elif first_essential or second_essential:
+            essential = first if first_essential else second
+            not_essential = second if first_essential else first
+            options_raw.append([
+                opt.Option(list(poping), None),
+                opt.Option([essential], _reverse_substitution(not_essential)),
+                opt.Option([], _reverse_substitution(essential)),
+            ])
+        else:
+            options_raw.append([
+                opt.Option(list(poping), None),
+                opt.Option([], opt.RestrictionOR(_reverse_substitution(first), _reverse_substitution(second)))
+            ])
+
+    if len(options_raw) == 1:
+        result = []
+        for o in options_raw[0]:
+            result.extend(parent_option.combine(o))
+
+        return list(set(result))
+
+    options = []
+    for i in range(len(options_raw)):
+        for j in range(i + 1, len(options_raw)):
+            for opt_pair in itertools.product(options_raw[i], options_raw[j]):
+                for o in opt_pair[0].combine(opt_pair[1]):
+                    options.extend(parent_option.combine(o))
+
+    return list(set(options))
+
+
+def _dedup_popings(popings_raw: Poppings) -> Poppings:
     popings = set()
     for poping in popings_raw:
         if len(poping) == 1:
@@ -62,115 +123,14 @@ def get_options_for_pair(
             if pop in poping2:
                 popings.remove(poping1)
 
-    if len(popings) == 0:
-        return [opt.Option(parent_option.substitutions, parent_option.restriction)]
+    return list(popings)
 
-    options_raw = []
 
-    for poping in popings:
-        if len(poping) == 1:
-            pop = poping[0]
-            options_raw.append([
-                opt.Option(
-                    [pop],
-                    None,
-                ),
-                opt.Option(
-                    [],
-                    vr.VarNotStartsWith(pop.var, pop.const) if isinstance(pop, opt.PopLeft) else vr.VarNotEndsWith(
-                        pop.var, pop.const,
-                    )
-                ),
-            ])
-        elif len(poping) == 2:
-            first, second = poping
-            first_essential = is_popping_essential(template, pair, first)
-            second_essential = is_popping_essential(template, pair, second)
-            if first_essential and second_essential:
-                options_raw.append([
-                    opt.Option(
-                        [first, second],
-                        None
-                    ),
-                    opt.Option(
-                        [first],
-                        vr.VarNotStartsWith(second.var, second.const) if isinstance(second,
-                                                                                    opt.PopLeft) else vr.VarNotEndsWith(
-                            second.var, second.const)
-                    ),
-                    opt.Option(
-                        [second],
-                        vr.VarNotStartsWith(first.var, first.const) if isinstance(first,
-                                                                                  opt.PopLeft) else vr.VarNotEndsWith(
-                            first.var, first.const)
-                    ),
-                    opt.Option(
-                        [],
-                        vr.RestrictionAND([
-                            vr.VarNotStartsWith(first.var, first.const) if isinstance(first,
-                                                                                      opt.PopLeft) else vr.VarNotEndsWith(
-                                first.var, first.const),
-                            vr.VarNotStartsWith(second.var, second.const) if isinstance(second,
-                                                                                        opt.PopLeft) else vr.VarNotEndsWith(
-                                second.var, second.const)
-                        ])
-                    )
-                ])
-            elif first_essential or second_essential:
-                essential = first if first_essential else second
-                not_essential = second if first_essential else first
-                options_raw.append([
-                    opt.Option(
-                        list(poping),
-                        None
-                    ),
-                    opt.Option(
-                        [essential],
-                        vr.VarNotStartsWith(not_essential.var, not_essential.const) if isinstance(not_essential,
-                                                                                                  opt.PopLeft) else vr.VarNotEndsWith(
-                            not_essential.var, not_essential.const)
-                    ),
-                    opt.Option(
-                        [],
-                        vr.VarNotStartsWith(essential.var, essential.const) if isinstance(essential,
-                                                                                          opt.PopLeft) else vr.VarNotEndsWith(
-                            essential.var, essential.const)
-                    ),
-                ])
-            else:
-                options_raw.append([
-                    opt.Option(
-                        list(poping),
-                        None
-                    ),
-                    opt.Option(
-                        [],
-                        opt.RestrictionOR(
-                            vr.VarNotStartsWith(first.var, first.const) if isinstance(first,
-                                                                                      opt.PopLeft) else vr.VarNotEndsWith(
-                                first.var, first.const),
-                            vr.VarNotStartsWith(second.var, second.const) if isinstance(second,
-                                                                                        opt.PopLeft) else vr.VarNotEndsWith(
-                                second.var, second.const)
-                        )
-                    )
-                ])
+def _reverse_substitution(subst: opt.PopLeft | opt.PopRight) -> opt.Restriction:
+    if isinstance(subst, opt.PopLeft):
+        return vr.VarNotStartsWith(subst.var, subst.const)
 
-    if len(options_raw) == 1:
-        result = []
-        for o in options_raw[0]:
-            result.extend(parent_option.combine(o))
-
-        return list(set(result))
-
-    options = []
-    for i in range(len(options_raw)):
-        for j in range(i + 1, len(options_raw)):
-            for opt_pair in itertools.product(options_raw[i], options_raw[j]):
-                for o in opt_pair[0].combine(opt_pair[1]):
-                    options.extend(parent_option.combine(o))
-
-    return list(set(options))
+    return vr.VarNotEndsWith(subst.var, subst.const)
 
 
 if __name__ == '__main__':

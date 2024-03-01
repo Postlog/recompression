@@ -1,23 +1,20 @@
 import itertools
 
-from recompression.models.equation import Template
-from recompression.models.option import Option
-from recompression.models.substitution import EmptySubstitution
-from recompression.models.var_restriction import VarNotEmpty, RestrictionAND
+from recompression.models import equation as eq, option as opt
 
 
-def get_full_empty_option(template: Template, parent_option: Option) -> Option | None:
+def get_full_empty_option(template: eq.Template, parent_option: opt.Option) -> opt.Option | None:
     substs = []
     for var in template.get_vars():
-        subst = EmptySubstitution(var)
+        subst = opt.EmptySubstitution(var)
         if parent_option.restriction is not None and not parent_option.restriction.is_substitution_satisfies(subst):
             return None
         substs.append(subst)
 
-    return Option(substs, parent_option.restriction)
+    return opt.Option(substs, parent_option.restriction)
 
 
-def get_empty_options(template: Template, parent_option: Option | None = None) -> list[Option]:
+def get_empty_options(template: eq.Template, parent_option: opt.Option | None = None) -> list[opt.Option]:
     """
     Генерирует список опций с комбинацияеми пустых подстановок в переменные шаблона. Учитывает рестрикции,
     хранящиеся в parent_option.
@@ -26,6 +23,10 @@ def get_empty_options(template: Template, parent_option: Option | None = None) -
     :param parent_option: - опция, в результате применения которой был порожден шаблон
     :return: - список опций с пустыми подстановками
     """
+
+    if parent_option is None:
+        parent_option = opt.Option([], None)
+
     template_vars = template.get_vars()
 
     if len(template_vars) == 0:
@@ -40,8 +41,8 @@ def get_empty_options(template: Template, parent_option: Option | None = None) -
 
             must_skip_comb = False
             for var in empty_vars:
-                subst = EmptySubstitution(var)
-                if parent_option is None or parent_option.restriction is None:
+                subst = opt.EmptySubstitution(var)
+                if parent_option.restriction is None:
                     substs.append(subst)
                 elif parent_option.restriction.is_substitution_satisfies(subst):
                     substs.append(subst)
@@ -52,18 +53,17 @@ def get_empty_options(template: Template, parent_option: Option | None = None) -
                 continue
 
             for var in not_empty_vars:
-                restrs.append(VarNotEmpty(var))
+                restrs.append(opt.VarNotEmpty(var))
 
             restriction = None
             if len(restrs) == 1:
                 restriction = restrs[0]
             elif len(restrs) > 1:
-                restriction = RestrictionAND(restrs, None)
+                restriction = opt.RestrictionAND(restrs, None)
 
-            option = Option(substs, restriction)
-            if parent_option is not None:
-                options.extend(parent_option.combine(option))
-            else:
-                options.append(option)
+            option = opt.Option(substs, restriction)
+            options.extend([
+                opt.Option(option.substitutions, comb.restriction) for comb in parent_option.combine(option)
+            ])
 
     return list(set(options))

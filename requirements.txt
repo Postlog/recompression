@@ -1,5 +1,7 @@
+anytree==2.12.1
 iniconfig==2.0.0
 packaging==23.2
 pluggy==1.4.0
 pytest==8.0.2
+six==1.16.0
 z3-solver==4.12.6.0

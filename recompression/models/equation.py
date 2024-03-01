@@ -34,22 +34,12 @@ class Template:
 
         return set([var for var in self.elements if isinstance(var, v.Var)])
 
-    def get_consts(self) -> list[c.AbstractConst]:
+    def get_consts(self) -> set[c.AbstractConst]:
         """
         :return: множество констант выражения
         """
 
-        dedup = set()
-        result = []
-        for element in self.elements:
-            if isinstance(element, c.AbstractConst) and element not in dedup:
-                result.append(element)
-                dedup.add(element)
-
-        return result
-
-    def get_pair_uncrossings(self, var: v.Var, pair: c.Pair) -> list:
-        pass
+        return set([const for const in self.elements if isinstance(const, c.AbstractConst)])
 
     def apply_substitution(self, subst: s.Substitution) -> 'Template':
         elements_cpy = copy.deepcopy(self.elements)
@@ -57,7 +47,7 @@ class Template:
         var_indexes = indexes(self.elements, subst.var)
         if len(var_indexes) == 0:
             return Template(*elements_cpy)
-        
+
         elements_cpy = [el for el in elements_cpy if el != subst.var]
 
         replacement = None
@@ -182,14 +172,7 @@ class Sample:
         return result
 
     def get_consts(self) -> list[c.AbstractConst]:
-        dedup = set()
-        result = []
-        for element in self.elements:
-            if isinstance(element, c.AbstractConst) and element not in dedup:
-                result.append(element)
-                dedup.add(element)
-
-        return result
+        return list(set(self.elements))
 
     def with_replaced_pair(self, pair: c.Pair, const: c.Const) -> 'Sample':
         """
@@ -221,6 +204,9 @@ class Equation:
 
     @property
     def is_solved(self) -> bool:
+        if len(self.template.elements) == 1 and isinstance(self.template.elements[0], v.Var):
+            return True
+
         if len(self.sample.elements) == 1:
             return len(self.template.elements) == 1 and self.template.elements[0] == self.sample.elements[0]
 
@@ -254,7 +240,7 @@ class Equation:
         if len(self.template.elements) == 0 or len(self.sample.elements) == 0:
             return f'<empty equation>'
 
-        return f'{self.template} ＝ {self.sample}'
+        return f'{self.template}＝{self.sample}'
 
     __repr__ = __str__
 
@@ -267,6 +253,5 @@ if __name__ == '__main__':
 
     eq = Equation(template, sample)
 
-    print(eq.normalize())
     print(eq.normalize())
     print(eq.normalize().is_solved)

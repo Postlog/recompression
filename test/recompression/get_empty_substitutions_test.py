@@ -42,11 +42,11 @@ test_data = [
         Option([EmptySubstitution(X), EmptySubstitution(Y), EmptySubstitution(Z)], None),
     ]],
 
-    [[X], Option(restriction=VarNotEmpty(X)), [
-        Option(restriction=VarNotEmpty(X)),
+    [[X], Option([], restriction=VarNotEmpty(X)), [
+        Option([], restriction=VarNotEmpty(X)),
     ]],
-    [[X, Y], Option(restriction=VarNotEmpty(X)), [
-        Option(restriction=RestrictionAND([VarNotEmpty(X), VarNotEmpty(Y)])),
+    [[X, Y], Option([], restriction=VarNotEmpty(X)), [
+        Option([], restriction=RestrictionAND([VarNotEmpty(X), VarNotEmpty(Y)])),
         Option(substitutions=[EmptySubstitution(Y)], restriction=VarNotEmpty(X)),
     ]],
 ]
