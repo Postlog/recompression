@@ -1,120 +1,176 @@
-import copy
+from anytree import Node
+from anytree.exporter import DotExporter
 
-from models.compression_node import CompressionNode, RecompressionContext
-from models.const import Const
-from models.equation import Equation
-from models.var import Var
-
-Pair = tuple[Const, Const]
-
-
-def get_all_uncrossings(var: Var, pair: Pair) -> list[list[Const | Var]]:
-    a, b = pair
-
-    return [
-        [a, var],  # aX
-        [b, var],  # bX
-        [a, var, b],  # aXb
-        [b, var, a],  # bXa
-        [var, a],  # Xa
-        [var, b],  # Xb
-        []  # epsilon
-    ]
+from recompression.compress_pair import compress_pair
+from recompression.get_empty_substitutions import get_empty_options, get_full_empty_option
+from recompression.get_most_profit_actions import get_most_profit_actions
+from recompression.get_options_for_pair import get_options_for_pair
+from recompression.heuristics.counting import is_satisfable
+from recompression.models import compression_node as cn, equation as eq, actions as ac, const as c, var as v, \
+    option as opt, substitution as s
+from utils.time import timeit
 
 
-def indexes(l: list, el: any) -> list[int]:
-    return [i for i, val in enumerate(l) if val == el]
+def convert_to_anytree_node(node: cn.CompressionNode):
+    name = f'{node.option}\n' if node.option.restriction is not None or len(node.option.substitutions) != 0 else ''
+    name += f'{node.compression_action}\n' if node.compression_action is not None else ''
+
+    name += f'{node.equation}'
+
+    attrs = {}
+    if node.equation.is_solved:
+        attrs["is_solution"] = True
+    elif len(node.children) == 0:
+        attrs["is_bad"] = True
+
+    anytree_node = Node(name, **attrs)
+
+    for child in node.children:
+        anytree_child = convert_to_anytree_node(child)
+        anytree_child.parent = anytree_node
+    return anytree_node
 
 
-def uncross_pair(
-        pair: Pair,
-        node: CompressionNode,
-        context: RecompressionContext,
-) -> list[CompressionNode]:
-    left = list(node.equation.left)
+def is_duplicate(root: cn.CompressionNode, target_equation: eq.Equation) -> bool:
+    if root.equation == target_equation:
+        return True
 
-    new_nodes = []
+    for child in root.children:
+        if is_duplicate(child, target_equation):
+            return True
 
-    for var in context.variables:
-        uncrossings = get_all_uncrossings(var, pair)
-        var_indexes = indexes(left, var)
-        if len(var_indexes) == 0:
+    return False
+
+
+def get_eps_all_option(node: cn.CompressionNode) -> opt.Option | None:
+    substs = []
+    if node.option is not None:
+        for var in node.equation.template.get_vars():
+            subst = s.EmptySubstitution(var)
+            if node.option.restriction is not None and not node.option.restriction.is_substitution_satisfies(subst):
+                return None
+            substs.append(subst)
+
+    return opt.Option(substs, None)
+
+
+# @timeit
+def solve(root_node: cn.CompressionNode, node: cn.CompressionNode):
+    node_eq = node.equation
+    actions = get_most_profit_actions(node_eq.sample)
+
+    empty_options = get_empty_options(node_eq.template, node.option)
+
+    for action in actions:
+        if not isinstance(action, ac.CompressPairAction):
+            print(f'ERROR: unknown action {action}')
             continue
 
-        for uncrossing in uncrossings:
-            new_left = copy.deepcopy(left)
-            new_left.remove(var)
+        for empty_option in empty_options:
+            empty_eq = empty_option.apply_to(node_eq)
 
-            for idx in var_indexes:
-                for i, uncrossing_element in enumerate(uncrossing):
-                    new_left.insert(idx + i, uncrossing_element)
+            for option in get_options_for_pair(empty_eq.template, action.pair, empty_option):
+                new_const, new_eq = compress_pair(
+                    action.pair,
+                    option.apply_to(empty_eq)
+                )
 
-            new_nodes.append(CompressionNode(
-                equation=Equation(left=tuple(new_left), right=node.equation.right),
-                vars_restrictions={},
-            ))
+                new_node = cn.CompressionNode(new_eq, option, action, [])
+                node.children.append(new_node)
 
-    return new_nodes
+                if new_eq.is_solved:
+                    continue
 
+                if not is_satisfable(new_eq, option):
+                    continue
 
-def compress_pair(pair: Pair, eq: Equation) -> Equation:
-    a, b = pair
+                if len(new_eq.sample.elements) == 1:
+                    empty_opt = get_full_empty_option(new_eq.template, option)
+                    if empty_opt is not None:
+                        emptied_eq = empty_opt.apply_to(new_eq)
+                        if emptied_eq.is_solved:
+                            new_node.children.append(cn.CompressionNode(
+                                equation=emptied_eq,
+                                option=empty_opt,
+                                compression_action=None,
+                                children=[]
+                            ))
 
-    new_const = Const(a.sym, a.index + 1)
+                    continue
 
-    new_right: list[Const] = []
-    i = 0
-    while i < len(eq.right):
-        if i < len(eq.right) - 1 and (eq.right[i], eq.right[i + 1]) == pair:
-            new_right.append(new_const)
-            i += 2
-        else:
-            new_right.append(eq.right[i])
-            i += 1
-
-    new_left: list[Const | Var] = []
-    i = 0
-    while i < len(eq.left):
-        if i < len(eq.left) - 1 and (eq.left[i], eq.left[i + 1]) == pair:
-            new_left.append(new_const)
-            i += 2
-        else:
-            new_left.append(eq.left[i])
-            i += 1
-
-    return Equation(left=tuple(new_left), right=tuple(new_right))
+                solve(root_node, new_node)
 
 
+@timeit
 def main():
-    alphabet = {Const('a'), Const('b')}
-    variables = {Var('X')}
-    eq = Equation(
-        left=(Const('a'), Const('b'), Var('X')),
-        right=(Const('a'), Const('b'), Const('a'), Const('b'))
-    )
-    ctx = RecompressionContext(alphabet=alphabet, variables=variables)
+    eq_raw = 'abXY=abbab'
 
-    nodes = [CompressionNode(eq, {})]
+    template = eq.Template(*[c.AlphabetConst(sym) if sym.islower() else v.Var(sym) for sym in eq_raw.split('=')[0]])
+    sample = eq.Sample(*[c.AlphabetConst(sym) for sym in eq_raw.split('=')[1]])
 
-    pair = (Const('a'), Const('b'))
+    equat = eq.Equation(template, sample)
+    tree_root = cn.CompressionNode.empty(equat)
+    solve(tree_root, tree_root)
+    print('solve finished')
+    print_solutions(tree_root)
 
-    while True:
-        uncrossings = []
-        for node in nodes:
-            uncrossings.extend(uncross_pair(pair, node, ctx))
+    anytree_root = convert_to_anytree_node(tree_root)
+    DotExporter(anytree_root, nodeattrfunc=node_attr_func).to_picture(f'{eq_raw}.png')
 
-        nodes = []
-        for uncrossing in uncrossings:
-            nodes.append(CompressionNode(compress_pair(pair, uncrossing.equation), {}))
 
-        found = False
-        for node in nodes:
-            if len(node.equation.left) == len(node.equation.right):
-                print(node.equation)
+def node_attr_func(node: Node) -> str | None:
+    if hasattr(node, 'is_solution'):
+        return 'color=green'
+    elif hasattr(node, 'is_bad'):
+        return 'color=red'
 
-        if found:
-            break
+    return None
+
+
+def print_solutions(node: cn.CompressionNode, path=None):
+    if path is None:
+        path = []
+
+    path.append(node.equation)
+
+    if node.equation.is_solved:
+        print(' -> '.join([str(eq) for eq in path]))
+
+    for child in node.children:
+        print_solutions(child, path)
+
+    path.pop()
 
 
 if __name__ == '__main__':
     main()
+
+"""
+На данном моменте я генерирую все возможные доставания констант из каждой переменной шаблона,
+например PairComp(a, b) на шаблоне XabY порождает извлеченя: X -> bX, X -> Xa, X -> X, X -> eps, аналогично для Y
+а далее собираю все возможные комбинации этих извлечений:
+
+1. X -> bX
+2. X -> Xa
+3. X -> X
+4. X -> eps
+5. Y -> bY
+6. Y -> Ya
+7. Y -> Y
+8. Y -> eps
+9. X -> bX, Y -> bY
+10. X -> bX, Y -> bY
+и тд и тп
+
+ 
+
+
+"""
+
+"""
+Перед извлечением рассматриваем случай когда переменные обращаются в eps:
+X -> eps
+X !-> eps
+Y -> eps
+Y !-> eps
+"""
