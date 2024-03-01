@@ -3,12 +3,12 @@ import itertools
 from recompression.models import const as c, equation as eq, option as opt, var as v, var_restriction as vr
 
 
-def is_popping_essential(template: eq.Template, pair: c.Pair, popping: opt.PopLeft | opt.PopRight):
-    new_tpl = template.apply_substitution(popping)
+def is_poping_essential(template: eq.Template, pair: c.Pair, poping: opt.PopLeft | opt.PopRight):
+    new_tpl = template.apply_substitution(poping)
     return new_tpl.get_pair_occourance_count(pair) > template.get_pair_occourance_count(pair)
 
 
-Poppings = list[tuple[opt.PopLeft | opt.PopRight] | tuple[opt.PopLeft | opt.PopRight, opt.PopLeft | opt.PopRight]]
+Popings = list[tuple[opt.PopLeft | opt.PopRight] | tuple[opt.PopLeft | opt.PopRight, opt.PopLeft | opt.PopRight]]
 
 
 def get_options_for_pair(
@@ -59,8 +59,8 @@ def get_options_for_pair(
             continue
 
         first, second = poping
-        first_essential = is_popping_essential(template, pair, first)
-        second_essential = is_popping_essential(template, pair, second)
+        first_essential = is_poping_essential(template, pair, first)
+        second_essential = is_poping_essential(template, pair, second)
         if first_essential and second_essential:
             options_raw.append([
                 opt.Option([first, second], None),
@@ -99,7 +99,7 @@ def get_options_for_pair(
     return list(set(options))
 
 
-def _dedup_popings(popings_raw: Poppings) -> Poppings:
+def _dedup_popings(popings_raw: Popings) -> Popings:
     popings = set()
     for poping in popings_raw:
         if len(poping) == 1:
