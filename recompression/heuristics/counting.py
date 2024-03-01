@@ -12,7 +12,8 @@ class CountingHeuristics(h.Heurisitcs):
     @timeit("heuristic of counting consts")
     def is_satisfable(self, equation: eq.Equation) -> bool:
         results = []
-        for const in equation.template.get_consts():
+        consts = equation.sample.get_consts().union(equation.template.get_consts())
+        for const in consts:
             self.z3.reset()
 
             lhs_count = 0

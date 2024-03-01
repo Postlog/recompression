@@ -14,11 +14,11 @@ class TreeImage:
 
     def _node_attr_func(self, node: anytree.Node) -> str | None:
         if hasattr(node, 'is_solution'):
-            return 'color=green'
+            return 'color=green shape=box'
         elif hasattr(node, 'is_bad'):
-            return 'color=red'
+            return 'color=red shape=box'
 
-        return None
+        return 'shape=box'
 
     def _convert_to_anytree_node(self, node: cn.CompressionNode):
         name = f'{node.option}\n' if node.option is not None and (node.option.restriction is not None or len(

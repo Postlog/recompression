@@ -34,7 +34,7 @@ class Template:
 
         return set([var for var in self.elements if isinstance(var, v.Var)])
 
-    def get_consts(self) -> set[c.AbstractConst]:
+    def get_consts(self) -> list[c.AbstractConst]:
         """
         :return: множество констант выражения
         """
@@ -171,8 +171,8 @@ class Sample:
 
         return result
 
-    def get_consts(self) -> list[c.AbstractConst]:
-        return list(set(self.elements))
+    def get_consts(self) -> set[c.AbstractConst]:
+        return set(self.elements)
 
     def with_replaced_pair(self, pair: c.Pair, const: c.Const) -> 'Sample':
         """
@@ -207,8 +207,12 @@ class Equation:
         if len(self.template.elements) == 1 and isinstance(self.template.elements[0], v.Var):
             return True
 
-        if len(self.sample.elements) == 1:
-            return len(self.template.elements) == 1 and self.template.elements[0] == self.sample.elements[0]
+        if len(self.sample.elements) == len(self.template.elements):
+            for i, el in enumerate(self.sample.elements):
+                if el != self.template.elements[i]:
+                    return False
+
+            return True
 
         return len(self.sample.elements) == 0 and len(self.template.elements) == 0
 
@@ -240,7 +244,7 @@ class Equation:
         if len(self.template.elements) == 0 or len(self.sample.elements) == 0:
             return f'<empty equation>'
 
-        return f'{self.template}＝{self.sample}'
+        return f'{self.template}={self.sample}'
 
     __repr__ = __str__
 

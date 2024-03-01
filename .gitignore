@@ -145,3 +145,4 @@ fabric.properties
 .pytest_cache
 
 *.png
+*.svg

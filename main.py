@@ -35,7 +35,7 @@ def main():
     print_solutions(root_node)
 
     generator = tree_image.TreeImage()
-    generator.generate(f'{eq_raw}.png', root_node)
+    generator.generate(f'{eq_raw}.svg', root_node)
 
 
 def print_solutions(node: cn.CompressionNode, path=None):
