@@ -11,41 +11,49 @@ class CountingHeuristics(h.Heurisitcs):
 
     @timeit("heuristic of counting consts")
     def is_satisfable(self, equation: eq.Equation, option: opt.Option) -> bool:
+        self._z3.reset()
         tpl_consts = equation.template.get_consts()
-        lhs_vars = []
-        lhs_vars_bools = []
-        not_empty_count = 0
-        for element in equation.template.elements:
-            if not isinstance(element, v.Var):
-                continue
-            var = z3.Int(str(element))
-            lhs_vars.append(var)
-            lhs_vars_bools.append(var >= 0)
-            if option.restriction is not None and not option.restriction.is_substitution_satisfies(opt.EmptySubstitution(element)):
-                not_empty_count += 1
 
         consts = equation.sample.get_consts().union(tpl_consts)
+        model = []
+        local_var_restrictions: dict[(v.Var, bool), any] = {}
         for const in consts:
-            self._z3.reset()
-
             spl_count = 0
             for element in equation.sample.elements:
                 if element == const:
                     spl_count += 1
 
             tpl_count = 0
-
             for element in equation.template.elements:
                 if element == const:
                     tpl_count += 1
+            local_model = z3.IntVal(tpl_count)
+            for element in equation.template.elements:
+                if not isinstance(element, v.Var):
+                    continue
 
-            lhs_z3_obj = z3.IntVal(tpl_count)
-            for var in lhs_vars:
-                lhs_z3_obj += var
+                var_name = str(element) + str(const)
+                var = z3.Int(var_name)
+                local_model += var
+                can_be_empty = True
+                if option.restriction is not None and not option.restriction.is_substitution_satisfies(
+                        opt.EmptySubstitution(element)):
+                    can_be_empty = False
 
-            self._z3.add(*lhs_vars_bools, lhs_z3_obj == z3.IntVal(spl_count))
-            check_result = self._z3.check()
-            if check_result not in (z3.sat, z3.unknown):
-                return False
+                if (element, can_be_empty) not in local_var_restrictions:
+                    local_var_restrictions[(element, can_be_empty)] = var
+                else:
+                    local_var_restrictions[(element, can_be_empty)] += var
 
-        return True
+            model.append(local_model == z3.IntVal(spl_count))
+        model_restrictions = []
+        for k, val in local_var_restrictions.items():
+            if k[1]:
+                model_restrictions.append(val >= 0)
+            else:
+                model_restrictions.append(val > 0)
+
+        self._z3.add(*model_restrictions, *model)
+        check_result = self._z3.check()
+
+        return check_result in (z3.sat, z3.unknown)
