@@ -29,19 +29,22 @@ class Template:
 
         return True
 
-    def get_vars(self) -> set[v.Var]:
+    def get_vars_set(self) -> set[v.Var]:
         """
         :return: множество переменных выражения
         """
 
         return set([var for var in self.elements if isinstance(var, v.Var)])
 
-    def get_consts(self) -> set[c.AbstractConst]:
+    def get_consts_set(self) -> set[c.AbstractConst]:
         """
         :return: множество констант выражения
         """
 
-        return set([const for const in self.elements if isinstance(const, c.AbstractConst)])
+        return set(self.get_consts())
+
+    def get_consts(self) -> list[c.AbstractConst]:
+        return [const for const in self.elements if isinstance(const, c.AbstractConst)]
 
     def apply_substitution(self, subst: s.Substitution) -> 'Template':
         elements_cpy = copy.deepcopy(self.elements)
@@ -88,6 +91,35 @@ class Template:
 
         return Template(*compressed_elements)
 
+    def get_consts_prefix_suffix(self) -> tuple[list[v.Var | c.Const], list[v.Var | c.Const]]:
+        prefix_len = 0
+        while prefix_len < len(self.elements) and not isinstance(self.elements[prefix_len], v.Var):
+            prefix_len += 1
+
+        suffix_len = 0
+        while suffix_len < len(self.elements) - prefix_len and not isinstance(self.elements[len(self.elements) - suffix_len - 1], v.Var):
+            suffix_len += 1
+
+        return self.elements[:prefix_len], self.elements[len(self.elements) - suffix_len:]
+
+    # def get_var_groups(self, pair: c.Pair) -> list[list[v.Var]]:
+    #     result = []
+    #     last_vars = []
+    #     a, b = pair
+    #     for el in self.elements:
+    #         if el == a:
+    #
+    #         if isinstance(el, v.Var):
+    #             last_vars.append(el)
+    #         elif len(last_vars) > 0:
+    #             result.append(last_vars)
+    #             last_vars = []
+    #
+    #     if len(last_vars) > 0:
+    #         result.append(last_vars)
+    #
+    #     return result
+
     def get_pair_occourance_count(self, pair: c.Pair):
         """
         Считает число вхождений пары pair в выражение
@@ -114,7 +146,7 @@ class SampleBlock:
 class Sample:
     elements: list[c.Const]
 
-    def __init__(self, *elements: v.Var | c.Const):
+    def __init__(self, *elements: c.Const):
         self.elements = list(elements)
 
     def __str__(self):
@@ -175,7 +207,7 @@ class Sample:
 
         return result
 
-    def get_consts(self) -> set[c.AbstractConst]:
+    def get_consts_set(self) -> set[c.AbstractConst]:
         return set(self.elements)
 
     def with_replaced_pair(self, pair: c.Pair, const: c.Const) -> 'Sample':
@@ -211,32 +243,14 @@ class Equation:
         if len(self.template.elements) == 1 and isinstance(self.template.elements[0], v.Var):
             return True
 
-        if len(self.sample.elements) == len(self.template.elements):
-            for i, el in enumerate(self.sample.elements):
-                if el != self.template.elements[i]:
-                    return False
+        if len(self.sample.elements) != len(self.template.elements):
+            return False
 
-            return True
+        for i, el in enumerate(self.sample.elements):
+            if el != self.template.elements[i]:
+                return False
 
-        return len(self.sample.elements) == 0 and len(self.template.elements) == 0
-
-    def normalize(self) -> 'Equation':
-        tpl_els = self.template.elements
-        spl_els = self.sample.elements
-
-        prefix_len = 0
-        min_len = min(len(tpl_els), len(spl_els))
-        while prefix_len < min_len and tpl_els[prefix_len] == spl_els[prefix_len]:
-            prefix_len += 1
-
-        suffix_len = 0
-        while suffix_len < min_len - prefix_len and tpl_els[-(suffix_len + 1)] == spl_els[-(suffix_len + 1)]:
-            suffix_len += 1
-
-        return Equation(
-            Template(*tpl_els[prefix_len:len(tpl_els) - suffix_len]),
-            Sample(*spl_els[prefix_len:len(spl_els) - suffix_len]),
-        )
+        return True
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Equation):
@@ -251,12 +265,12 @@ class Equation:
 
 
 if __name__ == '__main__':
-    eq_raw = 'abab=abab'
+    eq_raw = 'cXXccc=ac'
 
     template = Template(*[c.AlphabetConst(sym) if sym.islower() else v.Var(sym) for sym in eq_raw.split('=')[0]])
     sample = Sample(*[c.AlphabetConst(sym) for sym in eq_raw.split('=')[1]])
 
     eq = Equation(template, sample)
 
-    print(eq.normalize())
-    print(eq.normalize().is_solved)
+    print(eq)
+    print(template.get_consts_prefix_suffix())

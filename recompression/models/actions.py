@@ -7,7 +7,7 @@ from recompression.models.const import Const, Pair
 class CompressBlockAction:
     const: Const
     len: int
-    index: int
+    indexes: list[int]
 
     def __str__(self):
         return f'BlockComp({self.const})'

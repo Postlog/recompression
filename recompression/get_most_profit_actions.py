@@ -41,7 +41,6 @@ def build_compress_block_actions(
             continue
 
         block, indexes = profit[1]
-        for index in indexes:
-            result.append(ac.CompressBlockAction(block.const, block.len, index))
+        result.append(ac.CompressBlockAction(block.const, block.len, indexes))
     return result
 

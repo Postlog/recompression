@@ -5,7 +5,7 @@ from recompression.models import equation as eq, option as opt
 
 def get_full_empty_option(template: eq.Template, parent_option: opt.Option) -> opt.Option | None:
     substs = []
-    for var in template.get_vars():
+    for var in template.get_vars_set():
         subst = opt.EmptySubstitution(var)
         if parent_option.restriction is not None and not parent_option.restriction.is_substitution_satisfies(subst):
             return None
@@ -27,7 +27,7 @@ def get_empty_options(template: eq.Template, parent_option: opt.Option | None = 
     if parent_option is None:
         parent_option = opt.Option([], None)
 
-    template_vars = template.get_vars()
+    template_vars = template.get_vars_set()
 
     if len(template_vars) == 0:
         return []
