@@ -54,13 +54,3 @@ def print_solutions(node: cn.CompressionNode, path=None):
 
 if __name__ == '__main__':
     main()
-
-    # h = counting.CountingHeuristics()
-    # print(z3.Int('x') in [z3.Int('x')])
-    # print(h.is_satisfable(
-    #     eq.Equation(
-    #         template=eq.Template(v.Var('Z'), c.PairConst('a', 1), v.Var('Y'), c.AlphabetConst('b')),
-    #         sample=eq.Sample(c.PairConst('a', 1), c.AlphabetConst('c'), c.PairConst('a', 1))
-    #     ),
-    #     opt.Option([], opt.VarNotEmpty(v.Var('Y')))
-    # ))

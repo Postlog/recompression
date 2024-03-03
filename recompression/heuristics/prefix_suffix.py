@@ -4,7 +4,7 @@ from recompression.models import equation as eq, option as opt
 
 class PrefixSuffixHeuristics(h.Heurisitcs):
     def get_name(self) -> str:
-        return 'prefix-sufix'
+        return 'prefix-suffix'
 
     def is_satisfable(self, equation: eq.Equation, option: opt.Option) -> bool:
         tpl_consts = equation.template.get_consts()

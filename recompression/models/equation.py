@@ -102,24 +102,6 @@ class Template:
 
         return self.elements[:prefix_len], self.elements[len(self.elements) - suffix_len:]
 
-    # def get_var_groups(self, pair: c.Pair) -> list[list[v.Var]]:
-    #     result = []
-    #     last_vars = []
-    #     a, b = pair
-    #     for el in self.elements:
-    #         if el == a:
-    #
-    #         if isinstance(el, v.Var):
-    #             last_vars.append(el)
-    #         elif len(last_vars) > 0:
-    #             result.append(last_vars)
-    #             last_vars = []
-    #
-    #     if len(last_vars) > 0:
-    #         result.append(last_vars)
-    #
-    #     return result
-
     def get_pair_occourance_count(self, pair: c.Pair):
         """
         Считает число вхождений пары pair в выражение
