@@ -4,7 +4,7 @@ from typing import Optional
 
 from recompression.models import equation as eq
 from recompression.models.const import AlphabetConst
-from recompression.models.substitution import Substitution, EmptySubstitution, PopLeft, PopRight
+from recompression.models.substitution import Substitution, PopLeft, PopRight
 from recompression.models.var import Var
 from recompression.models.var_restriction import RestrictionAND, Restriction, RestrictionOR, VarNotStartsWith, \
     VarNotEndsWith, VarNotEmpty
@@ -14,6 +14,10 @@ from recompression.models.var_restriction import RestrictionAND, Restriction, Re
 class Option:
     substitutions: list[Substitution]
     restriction: RestrictionAND | RestrictionOR | Restriction | None
+
+    @property
+    def is_empty(self):
+        return len(self.substitutions) == 0 and self.restriction is None
 
     def __post_init__(self):
         if self.substitutions is None:
@@ -33,9 +37,9 @@ class Option:
                 if isinstance(self.restriction, RestrictionOR):
                     restrs_str = f'({restrs_str})'
 
-                restrs_str = ' and ' + restrs_str
+                restrs_str = ' & ' + restrs_str
 
-        return ' and '.join([str(subst) for subst in self.substitutions]) + restrs_str
+        return ' & '.join([str(subst) for subst in self.substitutions]) + restrs_str
 
     __repr__ = __str__
 
@@ -205,13 +209,62 @@ class Option:
 
         return list(filter(lambda x: x is not None, [option.normalize() for option in result]))
 
-    def normalize(self):
-        r = self._normalize()
+    def optimize(self, equation: eq.Equation) -> 'Option':
+        eq_consts = equation.template.get_consts_set().union(equation.sample.get_consts_set())
 
-        return r
+        if isinstance(self.restriction, (VarNotEndsWith, VarNotStartsWith)) and self.restriction.const not in eq_consts:
+            return Option(self.substitutions, None)
+        if isinstance(self.restriction, RestrictionAND):
+            filtered_simple_restrictions = []
+            for restr in self.restriction.simple_restrictions:
+                if isinstance(restr, (VarNotEndsWith, VarNotStartsWith)) and restr.const not in eq_consts:
+                    continue
+                filtered_simple_restrictions.append(restr)
 
-    def _normalize(self) -> Optional['Option']:
-        substs = self._has_subsitution_to_eps(list(set(self.substitutions)))
+            if self.restriction.restriction_or is None:
+                if len(filtered_simple_restrictions) == 0:
+                    return Option(self.substitutions, None)
+                elif len(filtered_simple_restrictions) == 1:
+                    return Option(self.substitutions, filtered_simple_restrictions[0])
+                else:
+                    return Option(self.substitutions, RestrictionAND(filtered_simple_restrictions, None))
+
+            trivially_true = False
+            if isinstance(self.restriction.restriction_or.left, (VarNotEndsWith, VarNotStartsWith)) and self.restriction.restriction_or.left.const not in eq_consts:
+                trivially_true = True
+            elif isinstance(self.restriction.restriction_or.left, (VarNotEndsWith, VarNotStartsWith)) and self.restriction.restriction_or.right.const not in eq_consts:
+                trivially_true = True
+
+            if trivially_true:
+                if len(filtered_simple_restrictions) == 0:
+                    return Option(self.substitutions, None)
+                elif len(filtered_simple_restrictions) == 1:
+                    return Option(self.substitutions, filtered_simple_restrictions[0])
+                else:
+                    return Option(self.substitutions, RestrictionAND(filtered_simple_restrictions, None))
+
+            if len(filtered_simple_restrictions) == 0:
+                return Option(self.substitutions, self.restriction.restriction_or)
+
+            return Option(self.substitutions, RestrictionAND(filtered_simple_restrictions, self.restriction.restriction_or))
+
+        if isinstance(self.restriction, RestrictionOR):
+            trivially_true = False
+            if isinstance(self.restriction.left, (VarNotEndsWith, VarNotStartsWith)) and self.restriction.left.const not in eq_consts:
+                trivially_true = True
+            if isinstance(self.restriction.left, (VarNotEndsWith, VarNotStartsWith)) and self.restriction.right.const not in eq_consts:
+                trivially_true = True
+
+            if trivially_true:
+                return Option(self.substitutions, None)
+
+            return Option(self.substitutions, self.restriction)
+
+        return Option(self.substitutions, self.restriction)
+
+
+    def normalize(self) -> Optional['Option']:
+        substs = list(set(self.substitutions))
         restr = self.restriction
 
         restr = self._remove_redutant_not_eps_restriction(substs, restr)
@@ -260,22 +313,6 @@ class Option:
                     restr = restr.left
 
         return Option(substs, restr)
-
-    @staticmethod
-    def _has_subsitution_to_eps(substs: list[Substitution]):
-        eps_substs = {}
-        for subst in substs:
-            if isinstance(subst, EmptySubstitution):
-                eps_substs[subst.var] = subst
-
-        result = []
-        for subst in substs:
-            if (isinstance(subst, PopLeft) or isinstance(subst, PopRight)) and subst.var in eps_substs:
-                continue
-            else:
-                result.append(subst)
-
-        return result + list(eps_substs.values())
 
     @staticmethod
     def _remove_redutant_not_eps_restriction(

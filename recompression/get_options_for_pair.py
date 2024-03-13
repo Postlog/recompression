@@ -1,6 +1,8 @@
-import itertools
-
 from recompression.models import const as c, equation as eq, option as opt, var as v, var_restriction as vr
+
+from pprint import pprint
+
+from utils.list import combinations
 
 
 def is_poping_essential(template: eq.Template, pair: c.Pair, poping: opt.PopLeft | opt.PopRight):
@@ -12,18 +14,18 @@ Popings = list[tuple[opt.PopLeft | opt.PopRight] | tuple[opt.PopLeft | opt.PopRi
 
 
 def get_options_for_pair(
-        template: eq.Template,
+        equation: eq.Equation,
         pair: c.Pair,
         parent_option: opt.Option,
 ) -> list[opt.Option]:
     popings_raw = []
     a, b = pair
-    for i, var in enumerate(template.elements):
+    for i, var in enumerate(equation.template.elements):
         if not isinstance(var, v.Var):
             continue
 
-        left = template.elements[i - 1] if i != 0 else None
-        right = template.elements[i + 1] if i != len(template.elements) - 1 else None
+        left = equation.template.elements[i - 1] if i != 0 else None
+        right = equation.template.elements[i + 1] if i != len(equation.template.elements) - 1 else None
 
         if left == a:
             popings_raw.append((opt.PopLeft(var, b),))
@@ -40,12 +42,12 @@ def get_options_for_pair(
             if right != var:
                 popings_raw.append((opt.PopRight(var, a), opt.PopLeft(right, b)))
             else:
-                popings_raw.append((opt.PopLeft(var, a), opt.PopRight(var, b)))
+                popings_raw.append((opt.PopLeft(var, b), opt.PopRight(var, a)))
 
     popings = _dedup_popings(popings_raw)
 
     if len(popings) == 0:
-        return [opt.Option(parent_option.substitutions, parent_option.restriction)]
+        return [parent_option]
 
     options_raw = []
 
@@ -59,8 +61,8 @@ def get_options_for_pair(
             continue
 
         first, second = poping
-        first_essential = is_poping_essential(template, pair, first)
-        second_essential = is_poping_essential(template, pair, second)
+        first_essential = is_poping_essential(equation.template, pair, first)
+        second_essential = is_poping_essential(equation.template, pair, second)
         if first_essential and second_essential:
             options_raw.append([
                 opt.Option([first, second], None),
@@ -90,13 +92,20 @@ def get_options_for_pair(
         return list(set(result))
 
     options = []
-    for i in range(len(options_raw)):
-        for j in range(i + 1, len(options_raw)):
-            for opt_pair in itertools.product(options_raw[i], options_raw[j]):
-                for o in opt_pair[0].combine(opt_pair[1]):
-                    options.extend(parent_option.combine(o))
+    for comb in combinations(options_raw, len(popings)):
+        acc = [opt.Option([], None)]
+        for o in comb:
+            local_acc = []
+            for acc_el in acc:
+                local_acc.extend(acc_el.combine(o))
+            acc = local_acc
+        options.extend(acc)
 
-    return list(set(options))
+    result = []
+    for o in options:
+        result.extend(parent_option.combine(o))
+
+    return list(set(result))
 
 
 def _dedup_popings(popings_raw: Popings) -> Popings:
@@ -142,4 +151,10 @@ if __name__ == '__main__':
     spl = eq.Sample(*[c.AlphabetConst(sym) for sym in eq_raw.split('=')[1]])
     pr = (c.AlphabetConst(pair_raw[0]), c.AlphabetConst(pair_raw[1]))
 
-    print(get_options_for_pair(tpl, pr, opt.Option([], None)))
+    # print(get_options_for_pair(tpl, pr, opt.Option([], None), 0))
+
+    pprint(combinations([
+        ['1-1', '1-2'],
+        ['2-1', '2-2'],
+        ['3-1', '3-2'],
+    ], 3))

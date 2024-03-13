@@ -73,7 +73,7 @@ class RestrictionOR:
         return self.left.is_substitution_satisfies(subst) or self.right.is_substitution_satisfies(subst)
 
     def __str__(self):
-        return f'{self.left} or {self.right}'
+        return f'{self.left} ∨ {self.right}'
 
     __repr__ = __str__
 
@@ -88,7 +88,7 @@ class RestrictionAND:
             self.simple_restrictions = []
 
         if len(self.simple_restrictions) == 0:
-            raise ValueError('simple restrictions cannot be emty')
+            raise ValueError('simple restrictions cannot be empty')
         elif len(self.simple_restrictions) == 1 and self.restriction_or is None:
             raise ValueError('at least 2 simple restrictions are required')
 
@@ -131,10 +131,10 @@ class RestrictionAND:
     def __str__(self):
         restr_or_str = ''
         if self.restriction_or is not None:
-            restr_or_str = f' and ({self.restriction_or})'
+            restr_or_str = f' & ({self.restriction_or})'
 
-        return ' and '.join(
-            [str(restr) for restr in self.simple_restrictions],
+        return ' & '.join(
+            [str(restr) for restr in sorted(self.simple_restrictions, key=lambda x: ord(x.var.sym))],
         ) + restr_or_str
 
     __repr__ = __str__

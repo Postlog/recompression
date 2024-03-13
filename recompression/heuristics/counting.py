@@ -1,7 +1,7 @@
 import z3
 
 from recompression.heuristics import heuristics as h
-from recompression.models import equation as eq, var as v, option as opt
+from recompression.models import equation as eq, var as v, option as opt, substitution as sb
 from utils.time import timeit
 
 
@@ -44,7 +44,7 @@ class CountingHeuristics(h.Heurisitcs):
                 local_model += var
                 can_be_empty = True
                 if option.restriction is not None and not option.restriction.is_substitution_satisfies(
-                        opt.EmptySubstitution(element),
+                        sb.EmptySubstitution(element),
                 ):
                     can_be_empty = False
 
