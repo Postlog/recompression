@@ -68,7 +68,7 @@ def get_options_for_pair(
                 opt.Option([first, second], None),
                 opt.Option([first], _reverse_substitution(second)),
                 opt.Option([second], _reverse_substitution(first)),
-                opt.Option([], vr.RestrictionAND([_reverse_substitution(first), _reverse_substitution(second)]))
+                opt.Option([], vr.RestrictionAND([_reverse_substitution(first), _reverse_substitution(second)], None))
             ])
         elif first_essential or second_essential:
             essential = first if first_essential else second

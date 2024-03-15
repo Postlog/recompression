@@ -80,8 +80,11 @@ class RestrictionOR:
 
 @dataclass
 class RestrictionAND:
-    simple_restrictions: list[Restriction] = None
-    restriction_or: RestrictionOR | None = None
+    simple_restrictions: list[Restriction]
+    restriction_or: RestrictionOR | None
+
+    def __hash__(self):
+        return sum([hash(r) for r in self.simple_restrictions]) + hash(self.restriction_or)
 
     def __post_init__(self):
         if self.simple_restrictions is None:
@@ -110,7 +113,7 @@ class RestrictionAND:
             if len(simple_restrs) == 1:
                 return simple_restrs[0]
 
-            return RestrictionAND(simple_restrs)
+            return RestrictionAND(simple_restrs, None)
 
         is_restriction_or_trivially_true = False
         for restr in simple_restrs:
@@ -126,7 +129,7 @@ class RestrictionAND:
         if len(simple_restrs) == 1:
             return simple_restrs[0]
 
-        return RestrictionAND(simple_restrs)
+        return RestrictionAND(simple_restrs, None)
 
     def __str__(self):
         restr_or_str = ''

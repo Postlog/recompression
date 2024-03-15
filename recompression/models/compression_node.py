@@ -5,6 +5,7 @@ from recompression.models import actions as ac, equation as eq, option as opt, c
 
 @dataclass
 class CompressionNode:
+    id: int
     equation: eq.Equation
     option: opt.Option | None
     compression_action: tuple[ac.CompressBlockAction | ac.CompressPairAction, c.BlockConst | c.PairConst] | None
@@ -13,8 +14,9 @@ class CompressionNode:
     @staticmethod
     def empty(equation: eq.Equation) -> 'CompressionNode':
         return CompressionNode(
+            id=1,
             equation=equation,
             option=None,
             compression_action=None,
-            children=[]
+            children=[],
         )

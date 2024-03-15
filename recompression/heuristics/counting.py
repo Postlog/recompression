@@ -12,7 +12,6 @@ class CountingHeuristics(h.Heurisitcs):
     def get_name(self) -> str:
         return 'counting'
 
-    @timeit("heuristic of counting consts")
     def is_satisfable(self, equation: eq.Equation, option: opt.Option) -> bool:
         self._z3.reset()
 

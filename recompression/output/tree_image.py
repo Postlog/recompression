@@ -6,7 +6,6 @@ from utils.time import timeit
 
 
 class TreeImage:
-    @timeit("tree image generation")
     def generate(self, path: str, root: cn.CompressionNode):
         anytree_root = self._convert_to_anytree_node(root)
 
@@ -25,7 +24,8 @@ class TreeImage:
         return 'shape=box'
 
     def _convert_to_anytree_node(self, node: cn.CompressionNode):
-        name = _get_compression_action_representation(node.compression_action)
+        name = f'ID: {node.id}\n'
+        name += _get_compression_action_representation(node.compression_action)
         name += _get_option_representation(node.option)
         name += f'{node.equation}'
 

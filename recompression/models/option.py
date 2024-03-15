@@ -26,8 +26,7 @@ class Option:
         self.substitutions = list(set(self.substitutions))
 
     def __hash__(self):
-        return sum([hash(subst) for subst in self.substitutions]) + \
-               hash(self.restriction) if self.restriction is None else 0
+        return sum([hash(subst) for subst in self.substitutions]) + hash(self.restriction)
 
     def __str__(self):
         restrs_str = ''
@@ -363,7 +362,7 @@ class Option:
 
                 return RestrictionAND(new_simple_restrs, None)
             else:
-                return RestrictionAND([*new_simple_restrs, new_restr_or])
+                return RestrictionAND([*new_simple_restrs, new_restr_or], None)
 
         return restr
 
