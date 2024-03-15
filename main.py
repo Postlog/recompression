@@ -2,7 +2,7 @@ import sys
 
 from recompression import solver
 from recompression.heuristics import counting, prefix_suffix
-from recompression.models import equation as eq, const as c, var as v, compression_node as cn, option as opt
+from recompression.models import equation as eq, const as c, var as v, compression_node as cn, option as opt, substitution as sb
 from recompression.output import tree_image
 from utils.time import timeit
 
@@ -27,17 +27,17 @@ def main():
     sample = eq.Sample(*[c.AlphabetConst(sym) for sym in spl_raw])
 
     equation = eq.Equation(template, sample)
-    s = solver.Solver([counting.CountingHeuristics(), prefix_suffix.PrefixSuffixHeuristics()])
+    s = solver.Solver([prefix_suffix.PrefixSuffixHeuristics(), counting.CountingHeuristics()])
 
     root_node = s.solve(equation)
 
-    print_solutions(root_node)
+    print_solutions_paths(root_node)
 
     generator = tree_image.TreeImage()
     generator.generate(f'{eq_raw}.svg', root_node)
 
 
-def print_solutions(node: cn.CompressionNode, path=None):
+def print_solutions_paths(node: cn.CompressionNode, path=None):
     if path is None:
         path = []
 
@@ -47,7 +47,7 @@ def print_solutions(node: cn.CompressionNode, path=None):
         print(' -> '.join([str(e) for e in path]))
 
     for child in node.children:
-        print_solutions(child, path)
+        print_solutions_paths(child, path)
 
     path.pop()
 

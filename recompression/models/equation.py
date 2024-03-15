@@ -1,9 +1,22 @@
 import copy
 import itertools
 from dataclasses import dataclass
+from enum import Enum
 
 from recompression.models import const as c, substitution as s, var as v
 from utils.list import indexes
+
+
+class VarGroupType(Enum):
+    GENERIC = 1
+    LEFT = 2
+    RIGHT = 3
+    LEFT_RIGHT = 4
+
+    def __str__(self):
+        return f'{self.name}'
+
+    __repr__ = __str__
 
 
 class Template:
@@ -69,6 +82,80 @@ class Template:
 
         return Template(*elements_cpy)
 
+    def get_var_groups(self) -> list[tuple[VarGroupType, int, int]]:
+        result = []
+        current_group = []
+        for i, el in enumerate(self.elements):
+            if isinstance(el, v.Var):
+                current_group.append(el)
+                continue
+
+            for (t, start, end) in self._get_max_var_subgroups_by_types(current_group):
+                subgroup = current_group[start:end]
+                result.append(
+                    (t, i - len(current_group) + start, len(subgroup)),
+                )
+
+            current_group = []
+
+        for (t, start, end) in self._get_max_var_subgroups_by_types(current_group):
+            subgroup = current_group[start:end]
+            result.append(
+                (t, len(self.elements) - len(current_group) + start, len(subgroup)),
+            )
+
+        return result
+
+    @staticmethod
+    def _get_max_var_subgroups_by_types(group: list[v.Var]) -> list[tuple[VarGroupType, int, int | None]]:
+        ts = []
+        if len(group) > 0:
+            ts.append((VarGroupType.GENERIC, 0, None))
+
+        for i in range(len(group)):
+            g = group[i:]
+            if len(g) > 1 and g[0] not in g[1:]:
+                ts.append((VarGroupType.LEFT, i, None))
+                break
+
+        for i in range(len(group)):
+            i_end = -i if i > 0 else None
+            g = group[:i_end]
+            if len(g) > 1 and g[-1] not in g[:-1]:
+                ts.append((VarGroupType.RIGHT, 0, i_end))
+                break
+
+        for i in range(len(group)):
+            g = group[i:]
+            if len(g) > 2 and g[0] == g[-1] and g[0] not in g[1:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, i, None))
+                break
+            if len(g) > 2 and g[0] != g[-1] and g[0] not in g[1:] and g[-1] not in g[:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, i, None))
+                break
+
+        for i in range(len(group)):
+            i_end = -i if i > 0 else None
+            g = group[:i_end]
+            if len(g) > 2 and g[0] == g[-1] and g[0] not in g[1:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, 0, i_end))
+                break
+            if len(g) > 2 and g[0] != g[-1] and g[0] not in g[1:] and g[-1] not in g[:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, 0, i_end))
+                break
+
+        for i in range(len(group)):
+            i_end = -i if i > 0 else None
+            g = group[i:i_end]
+            if len(g) > 2 and g[0] == g[-1] and g[0] not in g[1:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, i, i_end))
+                break
+            if len(g) > 2 and g[0] != g[-1] and g[0] not in g[1:] and g[-1] not in g[:-1]:
+                ts.append((VarGroupType.LEFT_RIGHT, i, i_end))
+                break
+
+        return list(set(ts))
+
     def with_replaced_pair(self, pair: c.Pair, const: c.Const) -> 'Template':
         """
         Создает новый экземпляр Template, в котором пара pair заменена на константу const
@@ -97,7 +184,8 @@ class Template:
             prefix_len += 1
 
         suffix_len = 0
-        while suffix_len < len(self.elements) - prefix_len and not isinstance(self.elements[len(self.elements) - suffix_len - 1], v.Var):
+        while suffix_len < len(self.elements) - prefix_len and not isinstance(
+                self.elements[len(self.elements) - suffix_len - 1], v.Var):
             suffix_len += 1
 
         return self.elements[:prefix_len], self.elements[len(self.elements) - suffix_len:]
@@ -246,8 +334,8 @@ class Equation:
     __repr__ = __str__
 
 
-if __name__ == '__main__':
-    eq_raw = 'cXXccc=ac'
+def main():
+    eq_raw = 'XaXXYXX=ac'
 
     template = Template(*[c.AlphabetConst(sym) if sym.islower() else v.Var(sym) for sym in eq_raw.split('=')[0]])
     sample = Sample(*[c.AlphabetConst(sym) for sym in eq_raw.split('=')[1]])
@@ -256,3 +344,9 @@ if __name__ == '__main__':
 
     print(eq)
     print(template.get_consts_prefix_suffix())
+    for (t, start, l) in template.get_var_groups():
+        print(t, template.elements[start:start + l])
+
+
+if __name__ == '__main__':
+    main()

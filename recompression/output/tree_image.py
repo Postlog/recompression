@@ -1,9 +1,7 @@
-import uuid
-
 import anytree
 import anytree.exporter as exporter
 
-from recompression.models import compression_node as cn
+from recompression.models import compression_node as cn, option as opt, actions as ac, const as c
 from utils.time import timeit
 
 
@@ -27,10 +25,8 @@ class TreeImage:
         return 'shape=box'
 
     def _convert_to_anytree_node(self, node: cn.CompressionNode):
-        name = f'{node.option}\n' if node.option is not None and (node.option.restriction is not None or len(
-            node.option.substitutions) != 0) else ''
-        name += f'{node.compression_action[0]} -> {node.compression_action[1]}\n' if node.compression_action is not None else ''
-
+        name = _get_compression_action_representation(node.compression_action)
+        name += _get_option_representation(node.option)
         name += f'{node.equation}'
 
         attrs = {}
@@ -45,3 +41,21 @@ class TreeImage:
             anytree_child = self._convert_to_anytree_node(child)
             anytree_child.parent = anytree_node
         return anytree_node
+
+
+def _get_option_representation(o: opt.Option | None) -> str:
+    subts = 'No substitutions'
+    if o is not None and len(o.substitutions) > 0:
+        subts = ', '.join([str(s) for s in sorted(o.substitutions, key=lambda x: ord(x.var.sym))])
+
+    restr = 'No restrictions'
+    if o is not None and o.restriction is not None:
+        restr = str(o.restriction)
+
+    return f'{subts}\n{restr}\n'
+
+
+def _get_compression_action_representation(
+        action: tuple[ac.CompressBlockAction | ac.CompressPairAction, c.BlockConst | c.PairConst] | None,
+) -> str:
+    return f'{action[0]} → {action[1]}\n' if action is not None else 'No compression action\n'
